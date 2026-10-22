@@ -105,48 +105,46 @@ Fitur migrasi LaraZeno:
 
 ---
 
-## 📦 Menjalankan Example Project (Laravel 13 Official)
+## 📦 Menjalankan Real-World Example: ZenoPOS (Point of Sale & Inventory)
 
-Repositori ini menyertakan contoh proyek resmi Laravel 13 di folder `examples/laravel-official` lengkap dengan implementasi CRUD Produk (REST API & Blade UI).
+Repositori ini menyertakan contoh aplikasi kasir & manajemen inventaris (*Point of Sale*) di folder `examples/laravel-official`. Aplikasi ini menguji fitur Laravel 13 yang berjalan di atas LaraZeno: **Blade UI**, **Eloquent ORM**, **REST API**, dan **Database Migrations**.
 
-### 1. Menjalankan Server LaraZeno
-Dari direktori root repositori `larazeno`:
+### 1. Migrasi Database (Zero PHP)
+Jalankan migrasi skema tabel `products`, `orders`, `users`, dan `personal_access_tokens`:
 
+```bash
+go run main.go -path=examples/laravel-official migrate
+```
+
+### 2. Menjalankan Server LaraZeno
 ```bash
 go run main.go -path=examples/laravel-official -port=9006
 ```
 
-LaraZeno akan secara otomatis:
-- Menghubungkan database SQLite (`database/database.sqlite`).
-- Membaca package dari `composer.json` via Virtual Vendor Provider.
-- Mem-parsing controller dan route dari `routes/web.php` dan `routes/api.php`.
-- Menjalankan HTTP server di port yang ditentukan (e.g. `9006`).
+LaraZeno akan secara otomatis menghubungkan database SQLite, mem-parsing controller `PosController` & `ProductController`, serta mendaftarkan route web & API.
 
-### 2. Mengakses Antarmuka Web (Blade UI)
+### 3. Mengakses Antarmuka Aplikasi
 Buka browser dan kunjungi:
-- **Halaman Utama Laravel**: [http://localhost:9006/](http://localhost:9006/)
-- **Katalog & CRUD Produk (Blade View)**: [http://localhost:9006/web/products](http://localhost:9006/web/products)
-  - Fitur: Tambah produk, Edit nama & harga via modal dialog interaktif, dan Hapus produk.
+- ⚡ **ZenoPOS Cashier Terminal**: [http://localhost:9006/pos](http://localhost:9006/pos) atau [http://localhost:9006/](http://localhost:9006/)
+  - **Katalog Produk Dinamis**: Pencarian instan dan filter kategori.
+  - **Keranjang Kasir (Cart)**: Tambah kuantitas, hitung subtotal & total otomatis.
+  - **Pilihan Pembayaran**: Tunai, QRIS, Kartu Debit.
+  - **Struk Transaksi**: Cetak struk belanja (*Receipt dialog*) dan simpan riwayat order ke tabel `orders`.
+- 📦 **Manajemen Inventaris Produk**: [http://localhost:9006/web/products](http://localhost:9006/web/products)
+  - Operasi CRUD: Tambah produk, Edit cepat dengan modal dialog, dan Hapus produk.
 
-### 3. Menguji REST API Produk (cURL)
-Selain antarmuka Blade, Anda juga dapat menguji endpoint REST API secara langsung:
-
+### 4. Menguji REST API Endpoint (cURL)
 ```bash
 # 1. Mendapatkan daftar produk
 curl http://localhost:9006/api/products
 
-# 2. Menambah produk baru
-curl -X POST http://localhost:9006/api/products \
+# 2. Transaksi Checkout POS baru (Order)
+curl -X POST http://localhost:9006/api/pos/checkout \
   -H "Content-Type: application/json" \
-  -d '{"name": "Mechanical Keyboard RGB", "price": 1500000}'
+  -d '{"order_number": "ORD-88912", "customer_name": "Budi Santoso", "total_amount": 21000000, "payment_method": "QRIS", "items_json": "[{\"id\":\"2\",\"name\":\"MacBook Air M3\",\"qty\":1,\"price\":21000000}]"}'
 
-# 3. Mengubah data produk
-curl -X PUT http://localhost:9006/api/products/1 \
-  -H "Content-Type: application/json" \
-  -d '{"name": "Mechanical Keyboard Wireless", "price": 1750000}'
-
-# 4. Menghapus produk
-curl -X DELETE http://localhost:9006/api/products/1
+# 3. Mendapatkan riwayat transaksi pesanan
+curl http://localhost:9006/api/pos/orders
 ```
 
 
