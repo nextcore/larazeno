@@ -1,12 +1,15 @@
 package framework
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"larazeno-core/pkg/blade"
 	"larazeno-core/pkg/engine"
@@ -232,7 +235,7 @@ func (f *FrameworkProvider) RegisterSlots(eng *engine.Engine, appCtx *vendors.Ap
 		return nil
 	})
 
-	// 7. SLOT: laravel.obj_call (Instance method seperti $product->delete())
+	// 7. SLOT: laravel.obj_call (Instance method seperti $product->delete(), $this->authService->login(), dll)
 	eng.Register("laravel.obj_call", func(ctx context.Context, node *engine.Node, scope *engine.Scope) error {
 		callTarget := fmt.Sprintf("%v", node.Value)
 		parts := strings.Split(callTarget, "->")
@@ -240,7 +243,7 @@ func (f *FrameworkProvider) RegisterSlots(eng *engine.Engine, appCtx *vendors.Ap
 			return nil
 		}
 		varName := strings.TrimPrefix(parts[0], "$")
-		methodName := parts[1]
+		methodName := parts[len(parts)-1]
 
 		if methodName == "delete" {
 			if objVal, ok := scope.Get(varName); ok {
@@ -252,6 +255,93 @@ func (f *FrameworkProvider) RegisterSlots(eng *engine.Engine, appCtx *vendors.Ap
 			}
 			return nil
 		}
+
+		// Generic Authentication Service Dispatcher
+		if methodName == "login" {
+			reqVal, _ := scope.Get("http.request")
+			var email, password string
+			if reqVal != nil {
+				req := reqVal.(*http.Request)
+				if req.Method == "POST" {
+					if req.Body != nil {
+						bodyBytes, _ := io.ReadAll(req.Body)
+						req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+						var payload map[string]interface{}
+						if err := json.Unmarshal(bodyBytes, &payload); err == nil {
+							if em, ok := payload["email"].(string); ok {
+								email = em
+							}
+							if pw, ok := payload["password"].(string); ok {
+								password = pw
+							}
+						}
+					}
+					if email == "" {
+						email = req.FormValue("email")
+						password = req.FormValue("password")
+					}
+				}
+			}
+
+			// Prioritaskan verifikasi via configured API backend jika ada
+			var backendURL string
+			if appCtx.Env != nil {
+				for k, v := range appCtx.Env {
+					if (strings.HasSuffix(k, "_BACKEND_URL") || strings.HasSuffix(k, "_API_URL") || k == "BACKEND_URL" || k == "API_URL") && v != "" {
+						backendURL = strings.TrimRight(v, "/")
+						break
+					}
+				}
+			}
+
+			var authResult map[string]interface{}
+			if backendURL != "" {
+				loginBody, _ := json.Marshal(map[string]string{
+					"email":    email,
+					"password": password,
+				})
+				client := &http.Client{Timeout: 5 * time.Second}
+				resp, err := client.Post(backendURL+"/api/v1/auth/login", "application/json", bytes.NewBuffer(loginBody))
+				if err != nil {
+					return fmt.Errorf("Layanan autentikasi backend tidak dapat dihubungi: %w", err)
+				}
+				defer resp.Body.Close()
+
+				if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden || resp.StatusCode >= 400 {
+					var errResp map[string]interface{}
+					_ = json.NewDecoder(resp.Body).Decode(&errResp)
+					msg := "Email atau password yang Anda masukkan salah."
+					if m, ok := errResp["message"].(string); ok && m != "" {
+						msg = m
+					}
+					return fmt.Errorf("%s", msg)
+				}
+
+				var apiResp struct {
+					Data map[string]interface{} `json:"data"`
+				}
+				if err := json.NewDecoder(resp.Body).Decode(&apiResp); err == nil && apiResp.Data != nil {
+					authResult = apiResp.Data
+				}
+			} else {
+				// Fallback verifikasi lokal via ORM database
+				user, token, err := orm.VerifyCredentials("User", email, password, "web-token")
+				if err != nil {
+					return fmt.Errorf("Email atau password yang Anda masukkan salah.")
+				}
+				authResult = map[string]interface{}{
+					"user": user,
+					"tokens": map[string]interface{}{
+						"access_token":  token,
+						"refresh_token": token,
+					},
+				}
+			}
+
+			scope.Set("_last_expr_result", authResult)
+			return nil
+		}
+
 		return nil
 	})
 

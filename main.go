@@ -242,6 +242,9 @@ func main() {
 					http.Error(w, fmt.Sprintf("Execution Error: %v", err), 500)
 					return
 				}
+				if _, sent := scope.Get("_response_sent"); sent {
+					break
+				}
 			}
 		}
 

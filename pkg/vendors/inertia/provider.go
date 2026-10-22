@@ -48,6 +48,14 @@ func (i *InertiaProvider) RegisterSlots(eng *engine.Engine, appCtx *vendors.AppC
 			}
 		}
 
+		// Sediakan standard Laravel/Inertia shared props jika belum ada
+		if _, exists := props["errors"]; !exists {
+			props["errors"] = map[string]interface{}{}
+		}
+		if _, exists := props["flash"]; !exists {
+			props["flash"] = map[string]interface{}{}
+		}
+
 		// 2. Evaluasi props eksplisit yang dideklarasikan di Inertia::render('Component', ['key' => $val])
 		for _, c := range node.Children {
 			if c.Name == "prop" {
