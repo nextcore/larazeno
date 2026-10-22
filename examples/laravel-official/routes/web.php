@@ -5,7 +5,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PosController;
 
 Route::get('/', function () {
-    return redirect('/pos');
+    return view('welcome');
 });
 
 // POS Cashier Terminal & Transactions

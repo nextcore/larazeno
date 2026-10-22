@@ -125,7 +125,9 @@ LaraZeno akan secara otomatis menghubungkan database SQLite, mem-parsing control
 
 ### 3. Mengakses Antarmuka Aplikasi
 Buka browser dan kunjungi:
-- ⚡ **ZenoPOS Cashier Terminal**: [http://localhost:9006/pos](http://localhost:9006/pos) atau [http://localhost:9006/](http://localhost:9006/)
+- 🏠 **Halaman Beranda Default Laravel**: [http://localhost:9006/](http://localhost:9006/)
+  - Menampilkan tampilan standar *welcome* Laravel 13 dengan navigasi langsung ke terminal POS dan manajemen produk.
+- ⚡ **ZenoPOS Cashier Terminal**: [http://localhost:9006/pos](http://localhost:9006/pos)
   - **Katalog Produk Dinamis**: Pencarian instan dan filter kategori.
   - **Keranjang Kasir (Cart)**: Tambah kuantitas, hitung subtotal & total otomatis.
   - **Pilihan Pembayaran**: Tunai, QRIS, Kartu Debit.

@@ -108,9 +108,19 @@
                             </span>
                         </li>
                     </ul>
-                    <ul class="flex gap-3 text-sm leading-normal">
+                    <ul class="flex flex-wrap gap-3 text-sm leading-normal">
                         <li>
-                            <a href="https://cloud.laravel.com" target="_blank" class="inline-block dark:bg-[#eeeeec] dark:border-[#eeeeec] dark:text-[#1C1C1A] dark:hover:bg-white dark:hover:border-white hover:bg-black hover:border-black px-5 py-1.5 bg-[#1b1b18] rounded-sm border border-black text-white text-sm leading-normal">
+                            <a href="/pos" class="inline-block px-5 py-1.5 bg-[#f53003] hover:bg-[#d92a02] rounded-sm text-white font-medium text-sm leading-normal">
+                                ⚡ Open ZenoPOS Terminal
+                            </a>
+                        </li>
+                        <li>
+                            <a href="/web/products" class="inline-block dark:bg-[#eeeeec] dark:border-[#eeeeec] dark:text-[#1C1C1A] dark:hover:bg-white dark:hover:border-white hover:bg-black hover:border-black px-5 py-1.5 bg-[#1b1b18] rounded-sm border border-black text-white text-sm leading-normal">
+                                📦 Inventory Manager
+                            </a>
+                        </li>
+                        <li>
+                            <a href="https://cloud.laravel.com" target="_blank" class="inline-block px-5 py-1.5 border border-[#e3e3e0] dark:border-[#3E3E3A] hover:border-[#1915014a] rounded-sm text-sm leading-normal text-[#706f6c] dark:text-[#A1A09A]">
                                 Deploy now
                             </a>
                         </li>
