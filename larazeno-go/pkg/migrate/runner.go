@@ -274,6 +274,11 @@ func parseColumnChain(line string) *ColumnDefinition {
 	methodType := matches[1]
 	argsRaw := matches[2]
 
+	// Abaikan pemanggilan standalone constraints seperti $table->index(...), $table->primary(...)
+	if methodType == "index" || methodType == "primary" || methodType == "unique" || methodType == "foreign" || methodType == "dropIndex" {
+		return nil
+	}
+
 	col := &ColumnDefinition{
 		Type: methodType,
 	}

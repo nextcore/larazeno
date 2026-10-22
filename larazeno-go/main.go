@@ -44,6 +44,10 @@ func main() {
 		if err == nil {
 			laravelProjectPath = cwd
 		}
+	} else {
+		if absPath, err := filepath.Abs(laravelProjectPath); err == nil {
+			laravelProjectPath = absPath
+		}
 	}
 	if !fileExists(filepath.Join(laravelProjectPath, "artisan")) {
 		log.Printf("⚠️  Peringatan: file 'artisan' tidak ditemukan di %s. Pastikan flag -path mengarah ke direktori proyek Laravel yang valid.", laravelProjectPath)
