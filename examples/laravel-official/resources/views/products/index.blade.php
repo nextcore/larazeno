@@ -16,6 +16,8 @@
             --text-muted: #9ca3af;
             --danger: #ef4444;
             --danger-hover: #dc2626;
+            --warning: #f59e0b;
+            --warning-hover: #d97706;
             --success: #10b981;
         }
 
@@ -84,7 +86,7 @@
 
         .form-grid {
             display: grid;
-            grid-template-columns: 2fr 1fr auto;
+            grid-template-columns: 2fr 1fr auto auto;
             gap: 1rem;
             align-items: flex-end;
         }
@@ -147,6 +149,20 @@
             transform: translateY(-1px);
         }
 
+        .btn-warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            padding: 0.4rem 0.8rem;
+            font-size: 0.75rem;
+            margin-right: 0.35rem;
+        }
+
+        .btn-warning:hover {
+            background: var(--warning);
+            color: white;
+        }
+
         .btn-danger {
             background: rgba(239, 68, 68, 0.1);
             color: #f87171;
@@ -158,6 +174,15 @@
         .btn-danger:hover {
             background: var(--danger);
             color: white;
+        }
+
+        .btn-cancel {
+            background: #374151;
+            color: #d1d5db;
+        }
+
+        .btn-cancel:hover {
+            background: #4b5563;
         }
 
         .table-responsive {
@@ -195,10 +220,50 @@
             color: #34d399;
         }
 
-        .empty-state {
-            text-align: center;
-            padding: 3rem 1rem;
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 50;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+        }
+
+        .modal-content {
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            border-radius: 1rem;
+            width: 100%;
+            max-width: 500px;
+            padding: 2rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .close-btn {
+            background: transparent;
+            border: none;
             color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -216,10 +281,11 @@
         </header>
 
         <!-- Form Tambah Produk -->
-        <div class="card">
-            <h2 style="font-size: 1.125rem; font-weight: 600; margin-bottom: 1.25rem;">Add New Product</h2>
-            <form action="/web/products" method="POST" class="form-grid">
+        <div class="card" id="formCard">
+            <h2 id="formTitle" style="font-size: 1.125rem; font-weight: 600; margin-bottom: 1.25rem;">Add New Product</h2>
+            <form id="productForm" action="/web/products" method="POST" class="form-grid">
                 @csrf
+                <input type="hidden" id="methodField" name="_method" value="" disabled>
                 <div class="form-group">
                     <label for="name">Product Name</label>
                     <input type="text" id="name" name="name" placeholder="e.g. Mechanical Keyboard RGB" required>
@@ -228,7 +294,8 @@
                     <label for="price">Price (IDR)</label>
                     <input type="number" id="price" name="price" placeholder="1500000" required>
                 </div>
-                <button type="submit" class="btn btn-primary">+ Save Product</button>
+                <button type="submit" id="submitBtn" class="btn btn-primary">+ Save Product</button>
+                <button type="button" id="cancelEditBtn" class="btn btn-cancel" style="display: none;" onclick="cancelEdit()">Cancel</button>
             </form>
         </div>
 
@@ -244,16 +311,17 @@
                             <th style="width: 80px;">ID</th>
                             <th>Product Name</th>
                             <th>Price</th>
-                            <th style="width: 120px; text-align: right;">Action</th>
+                            <th style="width: 160px; text-align: right;">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($products as $product)
                         <tr>
                             <td style="color: var(--text-muted);">#{{ $product['id'] }}</td>
-                            <td style="font-weight: 500;">{{ $product['name'] }}</td>
-                            <td class="price-tag">Rp {{ $product['price'] }}</td>
+                            <td style="font-weight: 500;" id="prod-name-{{ $product['id'] }}">{{ $product['name'] }}</td>
+                            <td class="price-tag" id="prod-price-{{ $product['id'] }}" data-raw-price="{{ $product['price'] }}">Rp {{ $product['price'] }}</td>
                             <td style="text-align: right;">
+                                <button type="button" class="btn btn-warning" onclick="editProduct('{{ $product['id'] }}', '{{ $product['name'] }}', '{{ $product['price'] }}')">Edit</button>
                                 <form action="/web/products/{{ $product['id'] }}" method="POST" style="display: inline-block;">
                                     @csrf
                                     @method('DELETE')
@@ -268,5 +336,60 @@
             </div>
         </div>
     </div>
+
+    <!-- Edit Modal Dialog (Opsional / Quick Switch) -->
+    <div id="editModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Product</h3>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <form id="modalForm" method="POST" style="display: flex; flex-direction: column; gap: 1.25rem;">
+                @csrf
+                <input type="hidden" name="_method" value="PUT">
+                <div class="form-group">
+                    <label for="modalName">Product Name</label>
+                    <input type="text" id="modalName" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="modalPrice">Price (IDR)</label>
+                    <input type="number" id="modalPrice" name="price" required>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem;">
+                    <button type="button" class="btn btn-cancel" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function editProduct(id, name, price) {
+            // Isi data ke modal dialog
+            const form = document.getElementById('modalForm');
+            form.action = '/web/products/' + id;
+            document.getElementById('modalName').value = name;
+            document.getElementById('modalPrice').value = price;
+            document.getElementById('editModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        // Close modal on escape key
+        window.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        // Close on clicking overlay
+        document.getElementById('editModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+    </script>
 </body>
 </html>

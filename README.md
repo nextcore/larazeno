@@ -84,6 +84,53 @@ Opsi argumen CLI:
 
 ---
 
+## 📦 Menjalankan Example Project (Laravel 13 Official)
+
+Repositori ini menyertakan contoh proyek resmi Laravel 13 di folder `examples/laravel-official` lengkap dengan implementasi CRUD Produk (REST API & Blade UI).
+
+### 1. Menjalankan Server LaraZeno
+Dari direktori root repositori `larazeno`:
+
+```bash
+go run main.go -path=examples/laravel-official -port=9006
+```
+
+LaraZeno akan secara otomatis:
+- Menghubungkan database SQLite (`database/database.sqlite`).
+- Membaca package dari `composer.json` via Virtual Vendor Provider.
+- Mem-parsing controller dan route dari `routes/web.php` dan `routes/api.php`.
+- Menjalankan HTTP server di port yang ditentukan (e.g. `9006`).
+
+### 2. Mengakses Antarmuka Web (Blade UI)
+Buka browser dan kunjungi:
+- **Halaman Utama Laravel**: [http://localhost:9006/](http://localhost:9006/)
+- **Katalog & CRUD Produk (Blade View)**: [http://localhost:9006/web/products](http://localhost:9006/web/products)
+  - Fitur: Tambah produk, Edit nama & harga via modal dialog interaktif, dan Hapus produk.
+
+### 3. Menguji REST API Produk (cURL)
+Selain antarmuka Blade, Anda juga dapat menguji endpoint REST API secara langsung:
+
+```bash
+# 1. Mendapatkan daftar produk
+curl http://localhost:9006/api/products
+
+# 2. Menambah produk baru
+curl -X POST http://localhost:9006/api/products \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Mechanical Keyboard RGB", "price": 1500000}'
+
+# 3. Mengubah data produk
+curl -X PUT http://localhost:9006/api/products/1 \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Mechanical Keyboard Wireless", "price": 1750000}'
+
+# 4. Menghapus produk
+curl -X DELETE http://localhost:9006/api/products/1
+```
+
+
+---
+
 ## 🌐 Contoh Penggunaan REST API
 
 Ketika LaraZeno berjalan, rute yang didefinisikan pada folder `routes/` proyek Laravel Anda akan otomatis didaftarkan:

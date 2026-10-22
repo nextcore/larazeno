@@ -26,6 +26,16 @@ class ProductController extends Controller
     }
 
     /**
+     * Web Blade Action: Update a product and redirect
+     */
+    public function webUpdate($id)
+    {
+        $product = Product::find($id);
+        $product->update();
+        return redirect('/web/products');
+    }
+
+    /**
      * Web Blade Action: Delete a product and redirect
      */
     public function webDestroy($id)
