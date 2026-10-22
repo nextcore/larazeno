@@ -273,7 +273,7 @@
         <header class="header">
             <div class="header-title">
                 <h1>Products Manager</h1>
-                <p>Pure Go AST Laravel Execution Engine</p>
+                <p>Universal AST Laravel Execution Engine (Go &amp; Rust)</p>
             </div>
             <div style="display: flex; align-items: center; gap: 0.75rem;">
                 <a href="/pos" style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.4); padding: 0.4rem 0.85rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600; text-decoration: none;">

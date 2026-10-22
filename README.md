@@ -1,13 +1,18 @@
 # LaraZeno
+ 
+**LaraZeno** adalah *high-performance Laravel execution engine & runtime* yang dirancang untuk mengeksekusi kode sumber Laravel langsung melalui **Abstract Syntax Tree (AST)** tanpa memerlukan instalasi runtime PHP, Composer, maupun folder fisik `vendor/` di lingkungan host (*Zero PHP Runtime, Zero Composer, Zero Vendor Folder*).
 
-**LaraZeno** adalah *high-performance Laravel execution engine* yang ditulis menggunakan bahasa Go murni. LaraZeno mem-parse kode sumber Laravel secara langsung menjadi **Abstract Syntax Tree (AST)** dan mengeksekusinya tanpa memerlukan instalasi PHP, Composer, maupun folder fisik `vendor/` di lingkungan host (*Zero PHP Runtime, Zero Composer, Zero Vendor Folder*).
+LaraZeno kini hadir dalam dua implementasi native:
+- **Go Engine (`larazeno`)**: Fleksibel, ringan, dan kaya fitur virtual vendor loader.
+- **Rust Engine (`larazeno-rs`)**: Berbasis **Rust 1.99+ (Edition 2024)**, **Axum**, dan **Tokio** untuk throughput tinggi dengan latensi ultra-rendah.
 
 ---
 
 ## ⚡ Fitur Utama
 
-- **Zero Composer & Zero Vendor Folder**: Tidak perlu `composer install` atau memelihara folder `vendor` yang memakan ruang ratusan megabyte. LaraZeno memetakan dependensi via *Virtual Vendor Provider*.
-- **Pure Go PHP Lexer & AST Parser**: Mengurai sintaks controller, routes, dan model Laravel langsung ke representasi AST di memori.
+- **Zero Composer & Zero Vendor Folder**: Tidak perlu `composer install` atau memelihara folder `vendor` yang memakan ruang ratusan megabyte.
+- **Universal Multi-Runtime**: Tersedia versi **Go** dan **Rust** dengan binary mandiri (*single static binary*).
+- **PHP Lexer & AST Parser**: Mengurai sintaks controller, routes, dan model Laravel langsung ke representasi AST di memori.
 - **Universal REST API Engine**:
   - Auto-discovery route (`routes/api.php`, `routes/web.php`, dll).
   - Mendukung `Route::get`, `Route::post`, `Route::put`, `Route::delete`.
@@ -17,10 +22,12 @@
   - Dukungan middleware `auth:sanctum`.
   - Validasi *Bearer Token* dan resolusi `$request->user()`.
 - **Lightweight Eloquent ORM Emulation**:
-  - Operasi dasar: `Model::all()`, `Model::find($id)`, `Model::create($data)`, `$model->delete()`.
+  - Operasi dasar: `Model::all()`, `Model::find($id)`, `Model::create($data)`, `$model->update()`, `$model->delete()`.
   - Mendukung driver database **MySQL / MariaDB** dan **SQLite** sesuai konfigurasi `.env`.
-- **Blade Template Engine (Go Native)**:
-  - Parsing direktif `@if`, `@foreach`, `@include`, dan interpolasi variabel `{{ $var }}`.
+- **Blade Template Engine (Native)**:
+  - Parsing direktif `@if`, `@foreach`, `@include`, dan interpolasi variabel `{{ $var }}` secara native.
+- **Built-in Migration CLI**:
+  - Migrasi database otomatis (`migrate` dan `migrate:status`) membaca file `database/migrations/` tanpa PHP Artisan.
 - **Security Guard**:
   - Proteksi terintegrasi dari akses file `.env`, webshell, atau eksekusi skrip ilegal langsung.
 
@@ -113,12 +120,28 @@ Repositori ini menyertakan contoh aplikasi kasir & manajemen inventaris (*Point 
 Jalankan migrasi skema tabel `products`, `orders`, `users`, dan `personal_access_tokens`:
 
 ```bash
-go run main.go -path=examples/laravel-official migrate
+# Opsi A: Menggunakan Go CLI (larazeno-go)
+cd larazeno-go
+go run main.go -path=../examples/laravel-official migrate
+go run main.go -path=../examples/laravel-official migrate:status
+
+# Opsi B: Menggunakan Rust CLI (larazeno-rs)
+cd larazeno-rs
+cargo run -- --path=../examples/laravel-official migrate
+cargo run -- --path=../examples/laravel-official migrate:status
 ```
 
 ### 2. Menjalankan Server LaraZeno
+Anda dapat memilih untuk menjalankan engine berbasis **Go** atau **Rust**:
+
 ```bash
-go run main.go -path=examples/laravel-official -port=9006
+# Opsi A: Menggunakan Go Engine (Port 9006)
+cd larazeno-go
+go run main.go -path=../examples/laravel-official -port=9006
+
+# Opsi B: Menggunakan Rust Engine (Port 9008)
+cd larazeno-rs
+cargo run -- --path=../examples/laravel-official --port=9008
 ```
 
 LaraZeno akan secara otomatis menghubungkan database SQLite, mem-parsing controller `PosController` & `ProductController`, serta mendaftarkan route web & API.
@@ -170,10 +193,58 @@ curl http://localhost:9001/api/user \
   -H "Authorization: Bearer <sanctum_access_token>"
 ```
 
+## 🧩 Modular Virtual Vendor Architecture (Go & Rust)
+
+LaraZeno mengusung arsitektur **Virtual Vendor Provider** yang sepenuhnya modular. Vendor PHP Laravel tidak dieksekusi secara lambat, melainkan digantikan oleh provider native (Go / Rust) dengan kontrak package composer yang identik:
+
+### 1. Bagaimana Menambahkan Vendor Baru di Rust (`larazeno-rs`)
+
+Cukup buat file di [src/vendors/](file:///media/max/3C38C268119D6B5C/github/larazeno/larazeno-rs/src/vendors) dan implementasikan trait [VendorProvider](file:///media/max/3C38C268119D6B5C/github/larazeno/larazeno-rs/src/vendors/mod.rs):
+
+```rust
+use axum::response::Response;
+use crate::vendors::{AppContext, RequestContext, VendorProvider};
+
+pub struct MyCustomVendor;
+
+impl VendorProvider for MyCustomVendor {
+    fn package_name(&self) -> &'static str {
+        "acme/custom-package"
+    }
+
+    fn boot(&self, ctx: &mut AppContext) -> Result<(), Box<dyn std::error::Error>> {
+        // Inisialisasi plugin/migrasi/state
+        Ok(())
+    }
+
+    fn dispatch(
+        &self,
+        ctx: &AppContext,
+        controller: &str,
+        action: &str,
+        req: &RequestContext,
+    ) -> Option<Response> {
+        if controller == "AcmeController" {
+            // Tangani request dan kembalikan axum Response
+            return Some(axum::Json(serde_json::json!({"status": "ok"})).into_response());
+        }
+        None // Lempar ke vendor berikutnya jika tidak cocok
+    }
+}
+```
+
+Daftarkan di `main.rs`:
+```rust
+registry.register(Box::new(MyCustomVendor));
+```
+Vendor hanya akan aktif jika dicantumkan di bagian `"require"` pada `composer.json` project target!
+
 ---
 
 ## 🗺️ Roadmap Pengembangan
 
+- [x] Trait-based Virtual Vendor Provider modular (`larazeno-rs`).
+- [x] Pure AST Lexer, Parser, & Evaluator untuk Blade Template Engine (Zero Regex).
 - [ ] Dukungan query builder lanjutan (`where`, `orderBy`, `paginate`).
 - [ ] Relasi Eloquent (`hasMany`, `belongsTo`, `with`).
 - [ ] Validasi Form Request komprehensif (`$request->validate(...)`).

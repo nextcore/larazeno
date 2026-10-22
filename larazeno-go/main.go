@@ -50,8 +50,8 @@ func main() {
 	}
 
 	fmt.Println("================================================================")
-	fmt.Println("  LaraZeno: Generic Laravel 13 Execution Engine (Pure Go AST)   ")
-	fmt.Println("  Zero Composer | Zero Vendor Folder | Universal REST API       ")
+	fmt.Println("  LaraZeno: Generic Laravel 13 Execution Engine (Go & Rust)     ")
+	fmt.Println("  Zero Composer | Zero Vendor Folder | Universal AST Runtime    ")
 	fmt.Println("================================================================")
 	fmt.Printf("📁 Project Root: %s\n", laravelProjectPath)
 

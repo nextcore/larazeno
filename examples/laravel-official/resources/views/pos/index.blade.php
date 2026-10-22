@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZenoPOS - Modern Point of Sale (Pure Go LaraZeno)</title>
+    <title>ZenoPOS - Modern Point of Sale (Universal Laravel Runtime)</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -648,7 +648,7 @@
             <div class="brand-logo">⚡</div>
             <div class="brand-info">
                 <h1>ZenoPOS</h1>
-                <span>Laravel 13 Cashier Terminal • Pure Go Engine</span>
+                <span>Laravel 13 Cashier Terminal • Universal AST Engine</span>
             </div>
         </a>
 
@@ -778,7 +778,7 @@
         <div class="receipt-card">
             <div class="receipt-header">
                 <h2>ZenoPOS RECEIPT</h2>
-                <p>Pure Go AST Laravel 13 Engine</p>
+                <p>Universal AST Laravel 13 Runtime</p>
                 <p id="receiptDate" style="font-size: 0.75rem; margin-top: 0.5rem;"></p>
                 <p id="receiptOrderNo" style="font-weight: 700; color: #111827; margin-top: 0.2rem;"></p>
             </div>

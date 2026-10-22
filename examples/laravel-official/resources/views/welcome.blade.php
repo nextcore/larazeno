@@ -119,11 +119,11 @@
                                 📦 Inventory Manager
                             </a>
                         </li>
-                        <li>
+                        <!-- <li>
                             <a href="https://cloud.laravel.com" target="_blank" class="inline-block px-5 py-1.5 border border-[#e3e3e0] dark:border-[#3E3E3A] hover:border-[#1915014a] rounded-sm text-sm leading-normal text-[#706f6c] dark:text-[#A1A09A]">
                                 Deploy now
                             </a>
-                        </li>
+                        </li> -->
                     </ul>
 
                     <p class="mt-6 lg:mt-10 text-[#706f6c] dark:text-[#A1A09A]">
