@@ -19,20 +19,20 @@ Panduan ini menjelaskan cara mengompilasi, melakukan migrasi database, dan menja
 Buka PowerShell di folder `larazeno-go`:
 
 ```powershell
-cd d:\Z\GH\larazeno\larazeno-go
+cd path\to\larazeno\larazeno-go
 go build -o larazeno.exe .
 ```
 
-Binary `larazeno.exe` akan terbuat di folder `larazeno-go`.
+Binary `larazeno.exe` akan terbuat di dalam folder `larazeno-go`.
 
 ---
 
 ## 3. Persiapan Target Proyek Laravel
 
-Pastikan proyek Laravel target (misal `examples\laravel-official`) sudah memiliki file `.env` dan `database.sqlite`:
+Pastikan proyek Laravel target (contoh: folder `examples\laravel-official` atau proyek Laravel Anda sendiri) sudah memiliki file `.env` dan `database.sqlite`:
 
 ```powershell
-cd d:\Z\GH\larazeno\examples\laravel-official
+cd path\to\larazeno\examples\laravel-official
 
 # 1. Salin template .env jika belum ada
 if (!(Test-Path .env)) { Copy-Item .env.example .env }
@@ -49,8 +49,10 @@ LaraZeno mendukung **path relatif**, **path absolut**, maupun eksekusi langsung 
 
 ### Opsi A: Dari Folder `larazeno-go` (Menggunakan Path Relatif)
 
+Jika terminal Anda berada di dalam folder `larazeno-go`:
+
 ```powershell
-cd d:\Z\GH\larazeno\larazeno-go
+cd path\to\larazeno\larazeno-go
 
 # 1. Cek status migrasi
 .\larazeno.exe -path "..\examples\laravel-official" migrate:status
@@ -66,10 +68,10 @@ cd d:\Z\GH\larazeno\larazeno-go
 
 ### Opsi B: Langsung dari Dalam Folder Proyek Laravel
 
-Jika terminal Anda berada di dalam folder proyek Laravel, Anda **tidak perlu menyertakan flag `-path`**:
+Jika terminal Anda berada di dalam folder proyek Laravel Anda, flag `-path` bersifat **opsional** (LaraZeno otomatis mendeteksi direktori aktif saat ini):
 
 ```powershell
-cd d:\Z\GH\larazeno\examples\laravel-official
+cd path\to\larazeno\examples\laravel-official
 
 # 1. Cek status migrasi
 ..\..\larazeno-go\larazeno.exe migrate:status
@@ -85,9 +87,9 @@ cd d:\Z\GH\larazeno\examples\laravel-official
 
 ## 5. Menguji Aplikasi
 
-Setelah server berjalan (`LaraZeno Server listening on http://127.0.0.1:9001`), buka browser atau terminal baru:
+Setelah server berjalan (`LaraZeno Server listening on http://127.0.0.1:9001`), buka browser atau tab PowerShell baru untuk pengujian:
 
-| Kebutuhan | URL / Perintah |
+| Fitur | Cara Akses |
 | :--- | :--- |
 | **Halaman Blade Laravel** | Buka browser ke `http://127.0.0.1:9001/` atau `curl.exe -i http://127.0.0.1:9001/` |
 | **REST API Produk (JSON)** | `curl.exe -i http://127.0.0.1:9001/api/products` |
@@ -98,10 +100,19 @@ Setelah server berjalan (`LaraZeno Server listening on http://127.0.0.1:9001`), 
 
 ## 6. Tips Tambahan
 
-1. **Mengganti Port**:
-   Jika port `9001` bentrok, tentukan port lain via `-port`, contoh:
+1. **Kustomisasi Port**:
+   Jika port `9001` bentrok dengan layanan lain, gunakan parameter `-port`:
    ```powershell
    .\larazeno.exe -path "..\examples\laravel-official" -port 8080
    ```
 2. **Koneksi MySQL/MariaDB**:
-   Ubah pengaturan `DB_CONNECTION=mysql` dan sesuaikan kredensial di file `.env` proyek Laravel Anda. LaraZeno akan otomatis mendeteksi konfigurasi tersebut.
+   Untuk menggunakan MySQL/MariaDB, atur konfigurasi pada file `.env` di proyek Laravel target:
+   ```env
+   DB_CONNECTION=mysql
+   DB_HOST=127.0.0.1
+   DB_PORT=3306
+   DB_DATABASE=nama_database
+   DB_USERNAME=root
+   DB_PASSWORD=secret
+   ```
+   LaraZeno akan membaca file `.env` secara otomatis saat runtime.
