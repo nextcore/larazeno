@@ -14,6 +14,7 @@ import (
 	"larazeno-core/pkg/config"
 	"larazeno-core/pkg/db"
 	"larazeno-core/pkg/engine"
+	"larazeno-core/pkg/migrate"
 	"larazeno-core/pkg/parser"
 	"larazeno-core/pkg/security"
 	"larazeno-core/pkg/slots/sanctum"
@@ -30,6 +31,12 @@ func main() {
 	projectPathFlag := flag.String("path", "", "Path ke folder project Laravel")
 	portFlag := flag.String("port", "9001", "Port server LaraZeno")
 	flag.Parse()
+
+	args := flag.Args()
+	subcommand := ""
+	if len(args) > 0 {
+		subcommand = args[0]
+	}
 
 	laravelProjectPath := *projectPathFlag
 	if laravelProjectPath == "" {
@@ -75,6 +82,21 @@ func main() {
 	_, err = db.Connect(dbDriver, dbDSN)
 	if err != nil {
 		log.Fatalf("❌ Gagal konek Database (%s: %s): %v", dbDriver, dbDSN, err)
+	}
+
+	// 2.5. Penanganan Subcommand CLI (e.g. migrate, migrate:status)
+	if subcommand == "migrate" {
+		runner := migrate.NewRunner(laravelProjectPath)
+		if err := runner.Run(); err != nil {
+			log.Fatalf("❌ Migration error: %v", err)
+		}
+		return
+	} else if subcommand == "migrate:status" {
+		runner := migrate.NewRunner(laravelProjectPath)
+		if err := runner.Status(); err != nil {
+			log.Fatalf("❌ Migration status error: %v", err)
+		}
+		return
 	}
 
 	// 3. Inisialisasi Engine Core & Auto-load Vendor Slots dari composer.json

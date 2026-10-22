@@ -84,6 +84,27 @@ Opsi argumen CLI:
 
 ---
 
+## 🗄️ CLI Migrasi Database (Zero PHP Artisan)
+
+LaraZeno dilengkapi dengan built-in AST migration engine untuk membaca file-file migrasi di `database/migrations/` dan mengeksekusi skema tabel secara otomatis ke SQLite atau MySQL tanpa memerlukan PHP CLI atau Artisan:
+
+```bash
+# Menjalankan seluruh file migrasi yang pending
+go run main.go -path=examples/laravel-official migrate
+
+# Memeriksa status file migrasi (Pending vs Ran)
+go run main.go -path=examples/laravel-official migrate:status
+```
+
+Fitur migrasi LaraZeno:
+- Otomatis membuat dan mengelola tabel riwayat `migrations` (batching).
+- Mendukung Schema Builder: `id()`, `string()`, `integer()`, `text()`, `timestamp()`, `timestamps()`, `rememberToken()`, `morphs()`.
+- Mendukung modifiers: `->primary()`, `->unique()`, `->nullable()`.
+- Idempoten: Migrasi yang sudah dieksekusi tidak akan dijalankan ulang.
+
+
+---
+
 ## 📦 Menjalankan Example Project (Laravel 13 Official)
 
 Repositori ini menyertakan contoh proyek resmi Laravel 13 di folder `examples/laravel-official` lengkap dengan implementasi CRUD Produk (REST API & Blade UI).
