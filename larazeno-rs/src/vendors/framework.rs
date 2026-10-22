@@ -76,20 +76,22 @@ impl VendorProvider for LaravelFrameworkProvider {
         // Cek apakah controller action mereturn view (berdasarkan inspeksi method atau pola nama action 'webIndex')
         let explicit_view = Self::inspect_controller_view(&ctx.project_root, controller, action);
         if let Some(view_name) = explicit_view {
-            // Ambil data untuk model utama
-            let items = ctx.db.all(&table).unwrap_or_default();
-            
-            // Siapkan multi-variable payload untuk Blade (misal: "products": [...], "orders": [...])
             let mut view_data = serde_json::Map::new();
-            view_data.insert(table.clone(), Value::Array(items));
 
-            // Jika controller juga mengakses model lain (contoh: PosController yang memakai Order::all()),
-            // kita sediakan auto-hydration untuk relasi/model pendukung yang ada di database
-            if let Ok(orders) = ctx.db.all("orders") {
-                view_data.insert("orders".to_string(), Value::Array(orders));
+            // Auto-hydrate SEMUA tabel yang ada di database SQLite secara dinamis (universal, tanpa hardcoding nama project)
+            if let Ok(tables) = ctx.db.tables() {
+                for tbl in tables {
+                    if let Ok(rows) = ctx.db.all(&tbl) {
+                        view_data.insert(tbl, Value::Array(rows));
+                    }
+                }
             }
-            if let Ok(categories) = ctx.db.all("categories") {
-                view_data.insert("categories".to_string(), Value::Array(categories));
+
+            // Jika controller name menghasilkan singular/plural yang belum ada di database,
+            // sertakan fallback default
+            if !view_data.contains_key(&table) {
+                let items = ctx.db.all(&table).unwrap_or_default();
+                view_data.insert(table.clone(), Value::Array(items));
             }
 
             if let Ok(html) = ctx.blade.render(&view_name, &Value::Object(view_data)) {
@@ -99,11 +101,20 @@ impl VendorProvider for LaravelFrameworkProvider {
 
         // Fallback untuk action convention 'webIndex' jika view belum terdeteksi dari AST
         if action == "webIndex" {
-            let items = ctx.db.all(&table).unwrap_or_default();
-            let view_name = format!("{}.index", table);
             let mut view_data = serde_json::Map::new();
-            view_data.insert(table.clone(), Value::Array(items));
+            if let Ok(tables) = ctx.db.tables() {
+                for tbl in tables {
+                    if let Ok(rows) = ctx.db.all(&tbl) {
+                        view_data.insert(tbl, Value::Array(rows));
+                    }
+                }
+            }
+            if !view_data.contains_key(&table) {
+                let items = ctx.db.all(&table).unwrap_or_default();
+                view_data.insert(table.clone(), Value::Array(items));
+            }
 
+            let view_name = format!("{}.index", table);
             if let Ok(html) = ctx.blade.render(&view_name, &Value::Object(view_data)) {
                 return Some(Html(html).into_response());
             }

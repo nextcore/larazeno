@@ -20,6 +20,19 @@ impl DbPool {
         conn.execute(sql, [])
     }
 
+    pub fn tables(&self) -> Result<Vec<String>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")?;
+        let rows = stmt.query_map([], |row| row.get(0))?;
+        let mut list = Vec::new();
+        for r in rows {
+            if let Ok(name) = r {
+                list.push(name);
+            }
+        }
+        Ok(list)
+    }
+
     pub fn all(&self, table: &str) -> Result<Vec<Value>> {
         let conn = self.conn.lock().unwrap();
         let query = format!("SELECT * FROM {}", table);
