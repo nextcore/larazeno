@@ -148,11 +148,35 @@ func (b *BladeEngine) Render(viewName string, data map[string]interface{}) (stri
 	reLocaleHelper := regexp.MustCompile(`\{\{\s*str_replace\(['"][^'"]*['"]\s*,\s*['"][^'"]*['"]\s*,\s*app\(\)->getLocale\(\)\)\s*\}\}`)
 	raw = reLocaleHelper.ReplaceAllString(raw, "en")
 
+	reAppVersion := regexp.MustCompile(`\{\{\s*app\(\)->version\(\)\s*\}\}`)
+	raw = reAppVersion.ReplaceAllString(raw, "13.0.0 (LaraZeno Engine)")
+
 	reAppLocale := regexp.MustCompile(`\{\{\s*app\(\)->getLocale\(\)\s*\}\}`)
 	raw = reAppLocale.ReplaceAllString(raw, "en")
 
-	// 6. Clean up any remaining unknown directives
-	reCleanup := regexp.MustCompile(`@(csrf|method\([^)]+\))`)
+	// Handle Blade comments: {{-- ... --}}
+	reBladeComments := regexp.MustCompile(`(?s)\{\{--.*?--\}\}`)
+	raw = reBladeComments.ReplaceAllString(raw, "")
+
+	// 6. Handle @fonts directive
+	raw = strings.ReplaceAll(raw, "@fonts", "")
+
+	// 7. Handle conditional blocks: @if (Route::has('login')) -> false by default if not set
+	reIfRoute := regexp.MustCompile(`(?s)@if\s*\(\s*Route::has\([^)]+\)\s*\)(.*?)@endif`)
+	raw = reIfRoute.ReplaceAllString(raw, "")
+
+	// Handle @if condition for @vite fallback styling
+	reIfVite := regexp.MustCompile(`(?s)@if\s*\(\s*file_exists\(public_path\([^)]+\)\).*?\)(.*?)@else(.*?)@endif`)
+	raw = reIfVite.ReplaceAllStringFunc(raw, func(m string) string {
+		sub := reIfVite.FindStringSubmatch(m)
+		if len(sub) > 2 {
+			return sub[2] // Gunakan fallback inline style (@else)
+		}
+		return m
+	})
+
+	// 8. Clean up any remaining unknown directives
+	reCleanup := regexp.MustCompile(`@(csrf|method\([^)]+\)|endif|endauth|else|auth)`)
 	raw = reCleanup.ReplaceAllString(raw, "")
 
 	return raw, nil

@@ -66,19 +66,19 @@ type HandlerFunc func(ctx context.Context, node *Node, scope *Scope) error
 
 type Engine struct {
 	mu       sync.RWMutex
-	Registry map[string]HandlerFunc
+	Registry map[string][]HandlerFunc
 }
 
 func NewEngine() *Engine {
 	return &Engine{
-		Registry: make(map[string]HandlerFunc),
+		Registry: make(map[string][]HandlerFunc),
 	}
 }
 
 func (e *Engine) Register(name string, fn HandlerFunc) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.Registry[name] = fn
+	e.Registry[name] = append(e.Registry[name], fn)
 }
 
 func (e *Engine) Execute(ctx context.Context, node *Node, scope *Scope) error {
@@ -87,11 +87,16 @@ func (e *Engine) Execute(ctx context.Context, node *Node, scope *Scope) error {
 	}
 
 	e.mu.RLock()
-	fn, exists := e.Registry[node.Name]
+	handlers, exists := e.Registry[node.Name]
 	e.mu.RUnlock()
 
-	if exists {
-		return fn(ctx, node, scope)
+	if exists && len(handlers) > 0 {
+		for _, fn := range handlers {
+			if err := fn(ctx, node, scope); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 
 	// Default fallback: execute all children sequentially

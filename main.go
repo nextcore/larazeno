@@ -129,6 +129,12 @@ func main() {
 		}
 
 		method := r.Method
+		if method == "POST" {
+			_ = r.ParseForm()
+			if spoofed := r.FormValue("_method"); spoofed != "" {
+				method = strings.ToUpper(spoofed)
+			}
+		}
 		path := r.URL.Path
 
 		// Match rute secara dinamis via regex pattern matching
@@ -207,6 +213,14 @@ func main() {
 
 		ctrlNode, exists := appCtx.Controllers[ctrlName]
 		if !exists {
+			// Coba strip namespace jika didaftarkan sebagai FQCN
+			shortName := ctrlName
+			if idx := strings.LastIndex(ctrlName, "\\"); idx != -1 {
+				shortName = ctrlName[idx+1:]
+			}
+			ctrlNode, exists = appCtx.Controllers[shortName]
+		}
+		if !exists {
 			http.Error(w, fmt.Sprintf("Controller %s not found", ctrlName), 404)
 			return
 		}
@@ -222,6 +236,8 @@ func main() {
 			http.Error(w, fmt.Sprintf("Method %s not found on %s", methodName, ctrlName), 404)
 			return
 		}
+
+		fmt.Printf("   [HTTP DISPATCH] %s %s -> %s@%s (params: %v)\n", method, path, ctrlName, methodName, params)
 
 		// 3. Buat Scope dan pass dynamic route parameters
 		scope := engine.NewScope(nil)

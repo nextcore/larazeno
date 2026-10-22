@@ -50,10 +50,15 @@ func LoadEnv(projectRoot string) (*LaravelEnv, error) {
 	}
 
 	dbDatabase := envMap["DB_DATABASE"]
-	if dbConn == "sqlite" && dbDatabase == "" {
-		dbDatabase = filepath.Join(projectRoot, "database", "database.sqlite")
-	} else if dbConn == "sqlite" && !filepath.IsAbs(dbDatabase) {
-		dbDatabase = filepath.Join(projectRoot, "database", dbDatabase)
+	if dbConn == "sqlite" {
+		if dbDatabase == "" {
+			dbDatabase = filepath.Join(projectRoot, "database", "database.sqlite")
+		} else if !filepath.IsAbs(dbDatabase) {
+			// Jika user menulis "database/database.sqlite" atau hanya "database.sqlite"
+			cleanRel := strings.TrimPrefix(dbDatabase, "database/")
+			cleanRel = strings.TrimPrefix(cleanRel, "database\\")
+			dbDatabase = filepath.Join(projectRoot, "database", cleanRel)
+		}
 	}
 
 	return &LaravelEnv{

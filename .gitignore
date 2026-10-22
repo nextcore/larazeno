@@ -1,6 +1,3 @@
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
 # Binaries for programs and plugins
 *.exe
 *.exe~
@@ -18,16 +15,58 @@ coverage.*
 *.coverprofile
 profile.cov
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
-
 # Go workspace file
 go.work
 go.work.sum
 
-# env file
+# Environment files
 .env
+.env.backup
+.env.production
+*.env
 
-# Editor/IDE
-# .idea/
-# .vscode/
+# Laravel / PHP temporary and dependency directories
+/vendor/
+/node_modules/
+**/vendor/
+**/node_modules/
+
+# Laravel Storage & Cache
+storage/*.key
+storage/pail
+**/storage/framework/cache/*
+**/storage/framework/sessions/*
+**/storage/framework/views/*
+**/storage/logs/*.log
+!**/storage/framework/cache/.gitignore
+!**/storage/framework/sessions/.gitignore
+!**/storage/framework/views/.gitignore
+!**/storage/logs/.gitignore
+
+# SQLite databases (jangan commit database lokal)
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.db
+
+# Frontend build artifacts
+/public/hot
+/public/storage
+/public/build
+**/public/hot
+**/public/storage
+**/public/build
+**/public/fonts-manifest.dev.json
+
+# System & IDE files
+.DS_Store
+Thumbs.db
+*.log
+.phpunit.result.cache
+.phpunit.cache/
+.idea/
+.vscode/
+.zed/
+.nova/
+.cursor/
+.codex/

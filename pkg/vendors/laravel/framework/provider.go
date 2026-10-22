@@ -196,6 +196,7 @@ func (f *FrameworkProvider) RegisterSlots(eng *engine.Engine, appCtx *vendors.Ap
 				scope.Set("_last_expr_result", nil)
 				return nil
 			}
+			record["_model_name"] = modelName
 			scope.Set("_last_expr_result", record)
 			scope.Set(strings.ToLower(modelName), record)
 			return nil
@@ -207,7 +208,16 @@ func (f *FrameworkProvider) RegisterSlots(eng *engine.Engine, appCtx *vendors.Ap
 			data := make(map[string]interface{})
 			if reqVal != nil {
 				req := reqVal.(*http.Request)
-				_ = json.NewDecoder(req.Body).Decode(&data)
+				if strings.Contains(req.Header.Get("Content-Type"), "application/json") {
+					_ = json.NewDecoder(req.Body).Decode(&data)
+				} else {
+					_ = req.ParseForm()
+					for k, v := range req.PostForm {
+						if k != "_token" && k != "_method" && len(v) > 0 {
+							data[k] = v[0]
+						}
+					}
+				}
 			}
 
 			record, err := orm.Create(modelName, data)
@@ -235,7 +245,7 @@ func (f *FrameworkProvider) RegisterSlots(eng *engine.Engine, appCtx *vendors.Ap
 		return nil
 	})
 
-	// 7. SLOT: laravel.obj_call (Instance method seperti $product->delete(), $this->authService->login(), dll)
+	// 7. SLOT: laravel.obj_call (Instance method seperti $product->delete(), $product->update(), dll)
 	eng.Register("laravel.obj_call", func(ctx context.Context, node *engine.Node, scope *engine.Scope) error {
 		callTarget := fmt.Sprintf("%v", node.Value)
 		parts := strings.Split(callTarget, "->")
@@ -248,8 +258,46 @@ func (f *FrameworkProvider) RegisterSlots(eng *engine.Engine, appCtx *vendors.Ap
 		if methodName == "delete" {
 			if objVal, ok := scope.Get(varName); ok {
 				if objMap, isMap := objVal.(map[string]interface{}); isMap {
+					targetModel := varName
+					if mName, hasMName := objMap["_model_name"].(string); hasMName && mName != "" {
+						targetModel = mName
+					}
 					if id, idOk := objMap["id"]; idOk {
-						_ = orm.Delete(varName, id)
+						_ = orm.Delete(targetModel, id)
+					}
+				}
+			}
+			return nil
+		}
+
+		if methodName == "update" {
+			if objVal, ok := scope.Get(varName); ok {
+				if objMap, isMap := objVal.(map[string]interface{}); isMap {
+					targetModel := varName
+					if mName, hasMName := objMap["_model_name"].(string); hasMName && mName != "" {
+						targetModel = mName
+					}
+					if id, idOk := objMap["id"]; idOk {
+						reqVal, _ := scope.Get("http.request")
+						updateData := make(map[string]interface{})
+						if reqVal != nil {
+							req := reqVal.(*http.Request)
+							if strings.Contains(req.Header.Get("Content-Type"), "application/json") {
+								_ = json.NewDecoder(req.Body).Decode(&updateData)
+							} else {
+								_ = req.ParseForm()
+								for k, v := range req.PostForm {
+									if k != "_token" && k != "_method" && len(v) > 0 {
+										updateData[k] = v[0]
+									}
+								}
+							}
+						}
+						updated, err := orm.Update(targetModel, id, updateData)
+						if err == nil {
+							scope.Set("_last_expr_result", updated)
+							scope.Set(varName, updated)
+						}
 					}
 				}
 			}
@@ -387,6 +435,20 @@ func (f *FrameworkProvider) RegisterSlots(eng *engine.Engine, appCtx *vendors.Ap
 					}
 				} else {
 					outputData = rawVal
+				}
+			} else if len(node.Children) == 2 && strings.HasPrefix(fmt.Sprintf("%v", firstChild.Value), "$") {
+				// Format: response()->json($var, 201)
+				varName := strings.TrimPrefix(fmt.Sprintf("%v", firstChild.Value), "$")
+				if val, found := scope.Get(varName); found {
+					outputData = val
+				}
+				secondVal := fmt.Sprintf("%v", node.Children[1].Value)
+				if secondVal == "201" {
+					statusCode = http.StatusCreated
+				} else if secondVal == "404" {
+					statusCode = http.StatusNotFound
+				} else if secondVal == "401" {
+					statusCode = http.StatusUnauthorized
 				}
 			} else {
 				dataMap := make(map[string]interface{})

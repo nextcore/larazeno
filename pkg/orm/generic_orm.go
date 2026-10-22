@@ -96,6 +96,32 @@ func Create(modelName string, data map[string]interface{}) (map[string]interface
 	return data, nil
 }
 
+// Update modifies an existing record by ID
+func Update(modelName string, id interface{}, data map[string]interface{}) (map[string]interface{}, error) {
+	table := PluralizeModel(modelName)
+	now := time.Now().Format("2006-01-02 15:04:05")
+	data["updated_at"] = now
+
+	delete(data, "id")
+
+	var setClauses []string
+	var vals []interface{}
+
+	for k, v := range data {
+		setClauses = append(setClauses, fmt.Sprintf("%s = ?", k))
+		vals = append(vals, v)
+	}
+
+	vals = append(vals, id)
+	query := fmt.Sprintf("UPDATE %s SET %s WHERE id = ?", table, strings.Join(setClauses, ", "))
+	_, err := db.DBConn.DB.Exec(query, vals...)
+	if err != nil {
+		return nil, err
+	}
+
+	return Find(modelName, id)
+}
+
 // Delete removes record by ID
 func Delete(modelName string, id interface{}) error {
 	table := PluralizeModel(modelName)
