@@ -6,7 +6,7 @@ import (
 	"os"
 
 	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 type Database struct {
@@ -22,7 +22,7 @@ func Connect(driver, dsn string) (*Database, error) {
 
 	switch driver {
 	case "sqlite", "sqlite3":
-		sqlDriver = "sqlite3"
+		sqlDriver = "sqlite"
 		if dsn == "" {
 			dsn = "./database/database.sqlite"
 		}
