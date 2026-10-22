@@ -115,4 +115,4 @@ curl http://localhost:9001/api/user \
 
 ## 📄 Lisensi
 
-Proyek ini didistribusikan di bawah lisensi [MIT](LICENSE).
+Proyek ini didistribusikan di bawah lisensi [Apache 2.0](LICENSE).
