@@ -24,8 +24,10 @@ LaraZeno kini hadir dalam dua implementasi native:
 - **Lightweight Eloquent ORM Emulation**:
   - Operasi dasar: `Model::all()`, `Model::find($id)`, `Model::create($data)`, `$model->update()`, `$model->delete()`.
   - Mendukung driver database **MySQL / MariaDB** dan **SQLite** sesuai konfigurasi `.env`.
-- **Blade Template Engine (Native)**:
-  - Parsing direktif `@if`, `@foreach`, `@include`, dan interpolasi variabel `{{ $var }}` secara native.
+- **Blade Template Engine (Pure AST)**:
+  - Menggunakan **Pure Recursive Descent AST Lexer, Parser & Evaluator** (Zero Regex) untuk Blade template.
+  - Mendukung direktif `@if`, `@else`, `@elseif`, `@endif`, `@foreach`, `@endforeach`, `@csrf`, `@method`, `@include`, interpolasi variabel `{{ $var }}`, property access `{{ $product.price }}` / `{{ $product['price'] }}`, dan helper functions `config()`, `app()->version()`.
+  - **Dynamic Schema Auto-Hydration**: Data view otomatis terhidrasi dari tabel database SQLite/MySQL tanpa hardcoding.
 - **Built-in Migration CLI**:
   - Migrasi database otomatis (`migrate` dan `migrate:status`) membaca file `database/migrations/` tanpa PHP Artisan.
 - **Security Guard**:
@@ -37,27 +39,39 @@ LaraZeno kini hadir dalam dua implementasi native:
 
 ```text
 larazeno/
-├── main.go                     # Entry point CLI & HTTP Dispatcher
-├── go.mod / go.sum             # Modul dependensi Go
-└── pkg/
-    ├── blade/                  # Template engine Blade di atas Go
-    ├── config/                 # Parser konfigurasi .env
-    ├── db/                     # Abstraksi koneksi database (MySQL & SQLite)
-    ├── engine/                 # Core AST Execution Engine & Scope Management
-    ├── orm/                    # Emulasi Eloquent ORM & Query Executor
-    ├── parser/                 # Lexer dan Parser sintaks PHP
-    ├── router/                 # Dynamic HTTP Router & URL Pattern Matcher
-    ├── security/               # HTTP security middleware & guard
-    ├── slots/                  # Fitur bawaan Laravel (e.g. Sanctum Token)
-    └── vendors/                # Virtual Vendor Registry & Provider slots
+├── larazeno-go/                 # Engine LaraZeno berbasis Go
+│   ├── main.go                  # Entry point CLI, Migration & HTTP Dispatcher
+│   ├── go.mod / go.sum          # Modul dependensi Go
+│   └── pkg/
+│       ├── blade/               # Template engine Blade di atas Go
+│       ├── config/              # Parser konfigurasi .env
+│       ├── db/                  # Abstraksi koneksi database (MySQL & SQLite)
+│       ├── engine/              # Core AST Execution Engine & Scope Management
+│       ├── orm/                 # Emulasi Eloquent ORM & Query Executor
+│       ├── parser/              # Lexer dan Parser sintaks PHP
+│       ├── router/              # Dynamic HTTP Router & URL Pattern Matcher
+│       ├── security/            # HTTP security middleware & guard
+│       └── vendors/             # Virtual Vendor Registry & Provider slots
+├── larazeno-rs/                 # Engine LaraZeno berbasis Rust (Edition 2024, Axum, Tokio)
+│   ├── Cargo.toml               # Dependensi crate Rust
+│   └── src/
+│       ├── blade.rs             # Pure Recursive Descent AST Blade Lexer, Parser & Evaluator
+│       ├── cli.rs               # Universal Migration CLI (migrate & migrate:status)
+│       ├── db.rs                # SQLite thread-safe pool & dynamic table schema auto-discovery
+│       ├── main.rs              # Axum HTTP Server & Dynamic Route Matcher
+│       ├── parser.rs            # PHP AST Parser berbasis tree-sitter-php
+│       └── vendors/             # Modular Virtual Vendor System (Trait-based Provider)
+└── examples/
+    └── laravel-official/        # Real-world project Laravel 13 (ZenoPOS, Blade & Sanctum)
 ```
 
 ---
 
 ## 🚀 Persyaratan Sistem
 
-- **Go**: Versi 1.22 atau yang lebih baru (direkomendasikan Go 1.24+)
-- **Database (Opsional)**: MySQL / MariaDB atau SQLite
+- **Go**: Versi 1.22 atau yang lebih baru (direkomendasikan Go 1.24+) untuk `larazeno-go`
+- **Rust**: Versi 1.85+ / 1.99+ (Rust Edition 2024) dan `cargo` untuk `larazeno-rs`
+- **Database (Opsional)**: SQLite (bawaan) atau MySQL / MariaDB
 
 ---
 
@@ -69,38 +83,43 @@ git clone https://github.com/larazeno/larazeno.git
 cd larazeno
 ```
 
-### 2. Unduh Dependensi Go
+### 2. Menjalankan LaraZeno Go (`larazeno-go`)
 ```bash
+cd larazeno-go
 go mod tidy
+
+# Menjalankan server mengarah ke project Laravel target
+go run main.go -path=../examples/laravel-official -port=9006
 ```
 
-### 3. Jalankan LaraZeno Menghadap ke Proyek Laravel
-Arahkan flag `-path` ke folder proyek Laravel yang ingin dijalankan:
-
+### 3. Menjalankan LaraZeno Rust (`larazeno-rs`)
 ```bash
-# Menjalankan pada direktori proyek Laravel tertentu
-go run main.go -path=/path/ke/proyek/laravel -port=9001
+cd larazeno-rs
 
-# Atau jika dijalankan langsung di dalam folder proyek Laravel
-go run /path/ke/larazeno/main.go -port=9001
+# Menjalankan server performa tinggi Axum mengarah ke project Laravel target
+cargo run -- --path=../examples/laravel-official --port=9008
 ```
 
 Opsi argumen CLI:
-- `-path` : Path absolut atau relatif ke direktori proyek Laravel (default: current working directory).
-- `-port` : Port HTTP server yang akan dibuka (default: `9001`).
+- `--path` / `-path` : Path ke direktori proyek Laravel (default: current working directory).
+- `--port` / `-port` : Port HTTP server yang akan dibuka (default: `9008` di Rust, `9001` di Go).
 
 ---
 
 ## 🗄️ CLI Migrasi Database (Zero PHP Artisan)
 
-LaraZeno dilengkapi dengan built-in AST migration engine untuk membaca file-file migrasi di `database/migrations/` dan mengeksekusi skema tabel secara otomatis ke SQLite atau MySQL tanpa memerlukan PHP CLI atau Artisan:
+LaraZeno dilengkapi dengan built-in AST migration engine di **Go** dan **Rust** untuk membaca file-file migrasi di `database/migrations/` dan mengeksekusi skema tabel secara otomatis ke SQLite atau MySQL tanpa memerlukan PHP CLI atau Artisan:
 
 ```bash
-# Menjalankan seluruh file migrasi yang pending
-go run main.go -path=examples/laravel-official migrate
+# Opsi A: Menggunakan Go CLI (larazeno-go)
+cd larazeno-go
+go run main.go -path=../examples/laravel-official migrate
+go run main.go -path=../examples/laravel-official migrate:status
 
-# Memeriksa status file migrasi (Pending vs Ran)
-go run main.go -path=examples/laravel-official migrate:status
+# Opsi B: Menggunakan Rust CLI (larazeno-rs)
+cd larazeno-rs
+cargo run -- --path=../examples/laravel-official migrate
+cargo run -- --path=../examples/laravel-official migrate:status
 ```
 
 Fitur migrasi LaraZeno:
