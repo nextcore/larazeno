@@ -17,6 +17,7 @@ import (
 	"larazeno-core/pkg/migrate"
 	"larazeno-core/pkg/parser"
 	"larazeno-core/pkg/security"
+	"larazeno-core/pkg/seeder"
 	"larazeno-core/pkg/slots/sanctum"
 	"larazeno-core/pkg/vendors"
 
@@ -99,6 +100,12 @@ func main() {
 		runner := migrate.NewRunner(laravelProjectPath)
 		if err := runner.Status(); err != nil {
 			log.Fatalf("❌ Migration status error: %v", err)
+		}
+		return
+	} else if subcommand == "db:seed" || subcommand == "seed" {
+		seedRunner := seeder.NewRunner(laravelProjectPath)
+		if err := seedRunner.Run(); err != nil {
+			log.Fatalf("❌ Seeder error: %v", err)
 		}
 		return
 	}

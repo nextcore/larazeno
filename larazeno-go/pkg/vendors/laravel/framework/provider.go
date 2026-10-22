@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -210,6 +211,36 @@ func (f *FrameworkProvider) RegisterSlots(eng *engine.Engine, appCtx *vendors.Ap
 				req := reqVal.(*http.Request)
 				if strings.Contains(req.Header.Get("Content-Type"), "application/json") {
 					_ = json.NewDecoder(req.Body).Decode(&data)
+				} else if strings.Contains(req.Header.Get("Content-Type"), "multipart/form-data") {
+					_ = req.ParseMultipartForm(32 << 20) // 32MB max
+					if req.MultipartForm != nil {
+						for k, v := range req.MultipartForm.Value {
+							if k != "_token" && k != "_method" && len(v) > 0 {
+								data[k] = v[0]
+							}
+						}
+						for fileKey, fileHeaders := range req.MultipartForm.File {
+							if len(fileHeaders) > 0 {
+								fh := fileHeaders[0]
+								uploadsDir := filepath.Join(appCtx.ProjectRoot, "public", "uploads")
+								_ = os.MkdirAll(uploadsDir, 0755)
+								ext := filepath.Ext(fh.Filename)
+								saveFilename := fmt.Sprintf("%d%s", time.Now().UnixNano(), ext)
+								destPath := filepath.Join(uploadsDir, saveFilename)
+								
+								src, err := fh.Open()
+								if err == nil {
+									dst, err := os.Create(destPath)
+									if err == nil {
+										_, _ = io.Copy(dst, src)
+										_ = dst.Close()
+										data[fileKey] = "/uploads/" + saveFilename
+									}
+									_ = src.Close()
+								}
+							}
+						}
+					}
 				} else {
 					_ = req.ParseForm()
 					for k, v := range req.PostForm {
@@ -284,6 +315,36 @@ func (f *FrameworkProvider) RegisterSlots(eng *engine.Engine, appCtx *vendors.Ap
 							req := reqVal.(*http.Request)
 							if strings.Contains(req.Header.Get("Content-Type"), "application/json") {
 								_ = json.NewDecoder(req.Body).Decode(&updateData)
+							} else if strings.Contains(req.Header.Get("Content-Type"), "multipart/form-data") {
+								_ = req.ParseMultipartForm(32 << 20)
+								if req.MultipartForm != nil {
+									for k, v := range req.MultipartForm.Value {
+										if k != "_token" && k != "_method" && len(v) > 0 {
+											updateData[k] = v[0]
+										}
+									}
+									for fileKey, fileHeaders := range req.MultipartForm.File {
+										if len(fileHeaders) > 0 {
+											fh := fileHeaders[0]
+											uploadsDir := filepath.Join(appCtx.ProjectRoot, "public", "uploads")
+											_ = os.MkdirAll(uploadsDir, 0755)
+											ext := filepath.Ext(fh.Filename)
+											saveFilename := fmt.Sprintf("%d%s", time.Now().UnixNano(), ext)
+											destPath := filepath.Join(uploadsDir, saveFilename)
+
+											src, err := fh.Open()
+											if err == nil {
+												dst, err := os.Create(destPath)
+												if err == nil {
+													_, _ = io.Copy(dst, src)
+													_ = dst.Close()
+													updateData[fileKey] = "/uploads/" + saveFilename
+												}
+												_ = src.Close()
+											}
+										}
+									}
+								}
 							} else {
 								_ = req.ParseForm()
 								for k, v := range req.PostForm {

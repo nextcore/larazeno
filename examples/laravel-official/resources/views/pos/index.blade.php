@@ -713,7 +713,14 @@
                 <!-- Server rendered loop via Blade -->
                 @foreach($products as $product)
                 <div class="product-card" onclick="addToCart('{{ $product.id }}', '{{ $product.name }}', {{ $product.price }})">
-                    <div class="product-badge">ID #{{ $product.id }}</div>
+                    <div style="position: relative; width: 100%; height: 110px; border-radius: 8px; overflow: hidden; background: #1e293b; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: center;">
+                        @if(!empty($product.image))
+                            <img src="{{ $product.image }}" alt="{{ $product.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                        @else
+                            <span style="font-size: 2.2rem; opacity: 0.4;">📦</span>
+                        @endif
+                        <div class="product-badge" style="position: absolute; top: 6px; right: 6px;">ID #{{ $product.id }}</div>
+                    </div>
                     <div class="product-info">
                         <h4>{{ $product.name }}</h4>
                         <span style="font-size: 0.75rem; color: var(--text-muted);">Ready Stock</span>

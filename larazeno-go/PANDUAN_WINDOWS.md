@@ -60,7 +60,10 @@ cd path\to\larazeno\larazeno-go
 # 2. Jalankan migrasi database
 .\larazeno.exe -path "..\examples\laravel-official" migrate
 
-# 3. Jalankan HTTP server (default port 9001)
+# 3. Jalankan database seeder (opsional untuk isi data awal)
+.\larazeno.exe -path "..\examples\laravel-official" db:seed
+
+# 4. Jalankan HTTP server (default port 9001)
 .\larazeno.exe -path "..\examples\laravel-official" -port 9001
 ```
 
@@ -79,7 +82,10 @@ cd path\to\larazeno\examples\laravel-official
 # 2. Jalankan migrasi database
 ..\..\larazeno-go\larazeno.exe migrate
 
-# 3. Jalankan HTTP server
+# 3. Jalankan database seeder
+..\..\larazeno-go\larazeno.exe db:seed
+
+# 4. Jalankan HTTP server
 ..\..\larazeno-go\larazeno.exe -port 9001
 ```
 

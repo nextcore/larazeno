@@ -73,13 +73,48 @@ func (b *BladeEngine) Render(viewName string, data map[string]interface{}) (stri
 				for _, itm := range items {
 					itemRendered := loopBody
 					// Replace {{ $item['field'] }} atau {{ $item.field }}
+					// Replace {{ $item['field'] }} atau {{ $item.field }}
 					for k, v := range itm {
 						valStr := fmt.Sprintf("%v", v)
+						if v == nil {
+							valStr = ""
+						}
 						itemRendered = strings.ReplaceAll(itemRendered, fmt.Sprintf("{{ $%s['%s'] }}", itemVarName, k), html.EscapeString(valStr))
 						itemRendered = strings.ReplaceAll(itemRendered, fmt.Sprintf("{{ $%s.%s }}", itemVarName, k), html.EscapeString(valStr))
 						itemRendered = strings.ReplaceAll(itemRendered, fmt.Sprintf("{{$%s['%s']}}", itemVarName, k), html.EscapeString(valStr))
 						itemRendered = strings.ReplaceAll(itemRendered, fmt.Sprintf("{{$%s.%s}}", itemVarName, k), html.EscapeString(valStr))
 					}
+
+					// Process @if(!empty($item['field'])) or @if(!empty($item.field))
+					reIfNotEmpty := regexp.MustCompile(fmt.Sprintf(`(?s)@if\(!empty\(\$%s(?:\['([^']+)'\]|\.([a-zA-Z0-9_]+))\)\)(.*?)@else(.*?)@endif`, itemVarName))
+					itemRendered = reIfNotEmpty.ReplaceAllStringFunc(itemRendered, func(m string) string {
+						sub := reIfNotEmpty.FindStringSubmatch(m)
+						field := sub[1]
+						if field == "" {
+							field = sub[2]
+						}
+						val, exists := itm[field]
+						if exists && val != nil && fmt.Sprintf("%v", val) != "" {
+							return sub[3] // true branch
+						}
+						return sub[4] // false branch
+					})
+
+					// Process @if(!empty(...)) without @else
+					reIfNotEmptySingle := regexp.MustCompile(fmt.Sprintf(`(?s)@if\(!empty\(\$%s(?:\['([^']+)'\]|\.([a-zA-Z0-9_]+))\)\)(.*?)@endif`, itemVarName))
+					itemRendered = reIfNotEmptySingle.ReplaceAllStringFunc(itemRendered, func(m string) string {
+						sub := reIfNotEmptySingle.FindStringSubmatch(m)
+						field := sub[1]
+						if field == "" {
+							field = sub[2]
+						}
+						val, exists := itm[field]
+						if exists && val != nil && fmt.Sprintf("%v", val) != "" {
+							return sub[3]
+						}
+						return ""
+					})
+
 					output.WriteString(itemRendered)
 				}
 			}

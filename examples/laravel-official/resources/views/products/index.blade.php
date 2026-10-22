@@ -286,7 +286,7 @@
         <!-- Form Tambah Produk -->
         <div class="card" id="formCard">
             <h2 id="formTitle" style="font-size: 1.125rem; font-weight: 600; margin-bottom: 1.25rem;">Add New Product</h2>
-            <form id="productForm" action="/web/products" method="POST" class="form-grid">
+            <form id="productForm" action="/web/products" method="POST" enctype="multipart/form-data" class="form-grid" style="grid-template-columns: 2fr 1fr 1.5fr auto auto;">
                 @csrf
                 <input type="hidden" id="methodField" name="_method" value="" disabled>
                 <div class="form-group">
@@ -296,6 +296,10 @@
                 <div class="form-group">
                     <label for="price">Price (IDR)</label>
                     <input type="number" id="price" name="price" placeholder="1500000" required>
+                </div>
+                <div class="form-group">
+                    <label for="image">Product Image (Upload)</label>
+                    <input type="file" id="image" name="image" accept="image/*" style="padding: 0.5rem 0.75rem;">
                 </div>
                 <button type="submit" id="submitBtn" class="btn btn-primary">+ Save Product</button>
                 <button type="button" id="cancelEditBtn" class="btn btn-cancel" style="display: none;" onclick="cancelEdit()">Cancel</button>
@@ -312,6 +316,7 @@
                     <thead>
                         <tr>
                             <th style="width: 80px;">ID</th>
+                            <th style="width: 80px;">Image</th>
                             <th>Product Name</th>
                             <th>Price</th>
                             <th style="width: 160px; text-align: right;">Action</th>
@@ -321,6 +326,13 @@
                         @foreach($products as $product)
                         <tr>
                             <td style="color: var(--text-muted);">#{{ $product['id'] }}</td>
+                            <td>
+                                @if(!empty($product['image']))
+                                    <img src="{{ $product['image'] }}" alt="{{ $product['name'] }}" style="width: 44px; height: 44px; object-fit: cover; border-radius: 8px; border: 1px solid var(--surface-border);">
+                                @else
+                                    <div style="width: 44px; height: 44px; border-radius: 8px; background: #1e293b; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">📦</div>
+                                @endif
+                            </td>
                             <td style="font-weight: 500;" id="prod-name-{{ $product['id'] }}">{{ $product['name'] }}</td>
                             <td class="price-tag" id="prod-price-{{ $product['id'] }}" data-raw-price="{{ $product['price'] }}">Rp {{ $product['price'] }}</td>
                             <td style="text-align: right;">
