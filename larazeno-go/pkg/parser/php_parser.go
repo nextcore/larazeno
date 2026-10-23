@@ -169,6 +169,33 @@ func (p *PHPParser) parseStatement() *engine.Node {
 			}
 			p.nextToken() // consume ')'
 		}
+
+		// Parse chained calls like ->get(), ->first(), ->orderBy(...)
+		for p.currTok.Type == TokenArrow {
+			p.nextToken() // consume '->'
+			chainedMethod := p.currTok.Literal
+			p.nextToken() // consume method name
+
+			chainedNode := &engine.Node{
+				Name:  "chained",
+				Value: chainedMethod,
+			}
+			if p.currTok.Type == TokenLParen {
+				p.nextToken()
+				for p.currTok.Type != TokenRParen && p.currTok.Type != TokenEOF {
+					if p.currTok.Type == TokenVariable || p.currTok.Type == TokenString || p.currTok.Type == TokenNumber {
+						chainedNode.Children = append(chainedNode.Children, &engine.Node{
+							Name:  "arg",
+							Value: p.currTok.Literal,
+						})
+					}
+					p.nextToken()
+				}
+				p.nextToken() // consume ')'
+			}
+			staticNode.Children = append(staticNode.Children, chainedNode)
+		}
+
 		return staticNode
 	}
 
@@ -223,6 +250,32 @@ func (p *PHPParser) parseStatement() *engine.Node {
 							break
 						}
 						p.nextToken()
+					} else if p.currTok.Type == TokenLBracket {
+						// Parse associative array ['name' => 'required', 'price' => 'required']
+						p.nextToken() // consume '['
+						for p.currTok.Type != TokenRBracket && p.currTok.Type != TokenEOF {
+							if p.currTok.Type == TokenString {
+								key := p.currTok.Literal
+								p.nextToken()
+								if p.currTok.Type == TokenFatArrow {
+									p.nextToken() // consume '=>'
+									val := ""
+									if p.currTok.Type == TokenString {
+										val = p.currTok.Literal
+										p.nextToken()
+									}
+									callArgs = append(callArgs, &engine.Node{
+										Name:  key,
+										Value: val,
+									})
+								}
+							} else {
+								p.nextToken()
+							}
+						}
+						if p.currTok.Type == TokenRBracket {
+							p.nextToken() // consume ']'
+						}
 					} else if p.currTok.Type == TokenString || p.currTok.Type == TokenNumber || p.currTok.Type == TokenVariable {
 						callArgs = append(callArgs, &engine.Node{
 							Name:  "arg",
@@ -621,57 +674,109 @@ func (p *PHPParser) parseStatement() *engine.Node {
 }
 
 func (p *PHPParser) parseRouteCall(method string) *engine.Node {
-	// Route::middleware('auth:sanctum')->group(function() { ... })
-	if method == "middleware" {
+	// 1. ROUTE GROUPS: Route::prefix(...), Route::middleware(...), Route::group(...)
+	if method == "middleware" || method == "prefix" || method == "group" {
 		var middlewareName string
-		if p.currTok.Type == TokenLParen {
-			p.nextToken()
-			if p.currTok.Type == TokenString {
-				middlewareName = p.currTok.Literal
-				p.nextToken()
+		var prefixPath string
+
+		currentMethod := method
+		for {
+			if currentMethod == "middleware" {
+				if p.currTok.Type == TokenLParen {
+					p.nextToken()
+					if p.currTok.Type == TokenString {
+						middlewareName = p.currTok.Literal
+						p.nextToken()
+					}
+					for p.currTok.Type != TokenRParen && p.currTok.Type != TokenEOF {
+						p.nextToken()
+					}
+					if p.currTok.Type == TokenRParen {
+						p.nextToken()
+					}
+				}
+			} else if currentMethod == "prefix" {
+				if p.currTok.Type == TokenLParen {
+					p.nextToken()
+					if p.currTok.Type == TokenString {
+						prefixPath = p.currTok.Literal
+						p.nextToken()
+					}
+					for p.currTok.Type != TokenRParen && p.currTok.Type != TokenEOF {
+						p.nextToken()
+					}
+					if p.currTok.Type == TokenRParen {
+						p.nextToken()
+					}
+				}
 			}
-			if p.currTok.Type == TokenRParen {
-				p.nextToken()
+
+			if p.currTok.Type == TokenArrow {
+				p.nextToken() // consume '->'
+				nextMethod := p.currTok.Literal
+				p.nextToken() // consume next method name
+				if nextMethod == "group" {
+					break
+				}
+				currentMethod = nextMethod
+			} else {
+				break
 			}
 		}
 
 		groupNode := &engine.Node{
-			Name:  "laravel.route_group",
-			Value: middlewareName,
+			Name: "laravel.route_group",
+		}
+		if prefixPath != "" {
+			groupNode.Children = append(groupNode.Children, &engine.Node{
+				Name:  "prefix",
+				Value: prefixPath,
+			})
+		}
+		if middlewareName != "" {
+			groupNode.Children = append(groupNode.Children, &engine.Node{
+				Name:  "middleware",
+				Value: middlewareName,
+			})
 		}
 
-		if p.currTok.Type == TokenArrow {
-			p.nextToken() // consume '->'
-			p.nextToken() // consume 'group'
-			if p.currTok.Type == TokenLParen {
+		// Parse group(function() { ... })
+		if p.currTok.Type == TokenLParen {
+			p.nextToken() // consume '('
+			for p.currTok.Type != TokenLBrace && p.currTok.Type != TokenEOF {
 				p.nextToken()
-				// function() { ... }
-				for p.currTok.Type != TokenLBrace && p.currTok.Type != TokenEOF {
-					p.nextToken()
-				}
-				if p.currTok.Type == TokenLBrace {
-					p.nextToken() // consume '{'
-					for p.currTok.Type != TokenRBrace && p.currTok.Type != TokenEOF {
-						subRoute := p.parseStatement()
-						if subRoute != nil {
-							// Inherit middleware to child routes
+			}
+			if p.currTok.Type == TokenLBrace {
+				p.nextToken() // consume '{'
+				for p.currTok.Type != TokenRBrace && p.currTok.Type != TokenEOF {
+					subRoute := p.parseStatement()
+					if subRoute != nil {
+						if prefixPath != "" {
+							subRoute.Children = append(subRoute.Children, &engine.Node{
+								Name:  "group_prefix",
+								Value: prefixPath,
+							})
+						}
+						if middlewareName != "" {
 							subRoute.Children = append(subRoute.Children, &engine.Node{
 								Name:  "middleware",
 								Value: middlewareName,
 							})
-							groupNode.Children = append(groupNode.Children, subRoute)
-						} else {
-							p.nextToken()
 						}
+						groupNode.Children = append(groupNode.Children, subRoute)
+					} else {
+						p.nextToken()
 					}
+				}
+				if p.currTok.Type == TokenRBrace {
 					p.nextToken() // consume '}'
 				}
-				for p.currTok.Type != TokenSemicolon && p.currTok.Type != TokenEOF {
-					p.nextToken()
-				}
-				if p.currTok.Type == TokenSemicolon {
-					p.nextToken()
-				}
+			}
+			for p.currTok.Type != TokenSemicolon && p.currTok.Type != TokenEOF {
+				p.nextToken()
+			}
+			if p.currTok.Type == TokenSemicolon {
+				p.nextToken()
 			}
 		}
 		return groupNode

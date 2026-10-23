@@ -130,21 +130,110 @@ func Delete(modelName string, id interface{}) error {
 	return err
 }
 
-// FindByField finds the first record matching field=value
-func FindByField(modelName string, field string, value interface{}) (map[string]interface{}, error) {
-	table := PluralizeModel(modelName)
-	query := fmt.Sprintf("SELECT * FROM %s WHERE %s = ? LIMIT 1", table, field)
-	rows, err := db.DBConn.DB.Query(query, value)
+// QueryBuilder supports chained Eloquent queries: Model::where(...)->orderBy(...)->limit(...)->get()
+type QueryBuilder struct {
+	ModelName   string
+	WhereClause []string
+	WhereArgs   []interface{}
+	OrderByCol  string
+	OrderDir    string
+	LimitVal    int
+	OffsetVal   int
+}
+
+func Query(modelName string) *QueryBuilder {
+	return &QueryBuilder{
+		ModelName: modelName,
+	}
+}
+
+func (q *QueryBuilder) Where(col string, opOrVal interface{}, optionalVal ...interface{}) *QueryBuilder {
+	if len(optionalVal) == 0 {
+		q.WhereClause = append(q.WhereClause, fmt.Sprintf("%s = ?", col))
+		q.WhereArgs = append(q.WhereArgs, opOrVal)
+	} else {
+		op := fmt.Sprintf("%v", opOrVal)
+		val := optionalVal[0]
+		q.WhereClause = append(q.WhereClause, fmt.Sprintf("%s %s ?", col, op))
+		q.WhereArgs = append(q.WhereArgs, val)
+	}
+	return q
+}
+
+func (q *QueryBuilder) OrderBy(col string, dir ...string) *QueryBuilder {
+	q.OrderByCol = col
+	if len(dir) > 0 && strings.ToUpper(dir[0]) == "DESC" {
+		q.OrderDir = "DESC"
+	} else {
+		q.OrderDir = "ASC"
+	}
+	return q
+}
+
+func (q *QueryBuilder) Limit(limit int) *QueryBuilder {
+	q.LimitVal = limit
+	return q
+}
+
+func (q *QueryBuilder) Offset(offset int) *QueryBuilder {
+	q.OffsetVal = offset
+	return q
+}
+
+func (q *QueryBuilder) Get() ([]map[string]interface{}, error) {
+	table := PluralizeModel(q.ModelName)
+	sqlStr := fmt.Sprintf("SELECT * FROM %s", table)
+
+	if len(q.WhereClause) > 0 {
+		sqlStr += " WHERE " + strings.Join(q.WhereClause, " AND ")
+	}
+	if q.OrderByCol != "" {
+		sqlStr += fmt.Sprintf(" ORDER BY %s %s", q.OrderByCol, q.OrderDir)
+	}
+	if q.LimitVal > 0 {
+		sqlStr += fmt.Sprintf(" LIMIT %d", q.LimitVal)
+	}
+	if q.OffsetVal > 0 {
+		sqlStr += fmt.Sprintf(" OFFSET %d", q.OffsetVal)
+	}
+
+	rows, err := db.DBConn.DB.Query(sqlStr, q.WhereArgs...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	results, err := scanRowsToMaps(rows)
-	if err != nil || len(results) == 0 {
+	return scanRowsToMaps(rows)
+}
+
+func (q *QueryBuilder) First() (map[string]interface{}, error) {
+	q.Limit(1)
+	results, err := q.Get()
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
 		return nil, sql.ErrNoRows
 	}
 	return results[0], nil
+}
+
+func (q *QueryBuilder) Count() (int, error) {
+	table := PluralizeModel(q.ModelName)
+	sqlStr := fmt.Sprintf("SELECT COUNT(*) FROM %s", table)
+
+	if len(q.WhereClause) > 0 {
+		sqlStr += " WHERE " + strings.Join(q.WhereClause, " AND ")
+	}
+
+	var count int
+	err := db.DBConn.DB.QueryRow(sqlStr, q.WhereArgs...).Scan(&count)
+	return count, err
+}
+
+// FindByField finds the first record matching field=value
+func FindByField(modelName string, field string, value interface{}) (map[string]interface{}, error) {
+	return Query(modelName).Where(field, value).First()
 }
 
 // VerifyCredentials validates email/password and returns a Sanctum token

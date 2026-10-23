@@ -383,18 +383,18 @@
             // 1. Update inline form at the top
             const form = document.getElementById('productForm');
             form.action = '/web/products/' + id;
-            
+
             const methodField = document.getElementById('methodField');
             methodField.value = 'PUT';
             methodField.disabled = false;
-            
+
             document.getElementById('name').value = name;
             document.getElementById('price').value = price;
-            
+
             document.getElementById('formTitle').innerText = 'Edit Product (ID #' + id + ')';
             document.getElementById('submitBtn').innerText = '✓ Update Product';
             document.getElementById('cancelEditBtn').style.display = 'inline-flex';
-            
+
             // 2. Also populate modal dialog
             const modalForm = document.getElementById('modalForm');
             modalForm.action = '/web/products/' + id;
@@ -409,14 +409,14 @@
         function cancelEdit() {
             const form = document.getElementById('productForm');
             form.action = '/web/products';
-            
+
             const methodField = document.getElementById('methodField');
             methodField.value = '';
             methodField.disabled = true;
-            
+
             document.getElementById('name').value = '';
             document.getElementById('price').value = '';
-            
+
             document.getElementById('formTitle').innerText = 'Add New Product';
             document.getElementById('submitBtn').innerText = '+ Save Product';
             document.getElementById('cancelEditBtn').style.display = 'none';

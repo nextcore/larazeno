@@ -58,6 +58,21 @@ func (b *BladeEngine) Render(viewName string, data map[string]interface{}) (stri
 		}
 	}
 
+	// 1.5 Handle Partial Views (@include('partials.name'))
+	reInclude := regexp.MustCompile(`@include\(['"]([^'"]+)['"]\)`)
+	raw = reInclude.ReplaceAllStringFunc(raw, func(m string) string {
+		sub := reInclude.FindStringSubmatch(m)
+		if len(sub) > 1 {
+			includeName := sub[1]
+			includeRelPath := strings.ReplaceAll(includeName, ".", "/") + ".blade.php"
+			includeFullPath := filepath.Join(b.ViewsPath, includeRelPath)
+			if incBytes, err := os.ReadFile(includeFullPath); err == nil {
+				return string(incBytes)
+			}
+		}
+		return ""
+	})
+
 	// 2. Handle Loops (@foreach($items as $item) ... @endforeach)
 	reForeach := regexp.MustCompile(`(?s)@foreach\(\$([a-zA-Z0-9_]+)\s+as\s+\$([a-zA-Z0-9_]+)\)(.*?)@endforeach`)
 	raw = reForeach.ReplaceAllStringFunc(raw, func(m string) string {

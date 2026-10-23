@@ -38,6 +38,7 @@ func (f *FrameworkProvider) RegisterSlots(eng *engine.Engine, appCtx *vendors.Ap
 		var middleware string
 
 		var routeName string
+		var groupPrefix string
 		for _, c := range node.Children {
 			if c.Name == "path" {
 				path = fmt.Sprintf("%v", c.Value)
@@ -50,6 +51,19 @@ func (f *FrameworkProvider) RegisterSlots(eng *engine.Engine, appCtx *vendors.Ap
 			}
 			if c.Name == "route_name" {
 				routeName = fmt.Sprintf("%v", c.Value)
+			}
+			if c.Name == "group_prefix" {
+				groupPrefix = fmt.Sprintf("%v", c.Value)
+			}
+		}
+
+		if groupPrefix != "" {
+			trimmedGroup := strings.Trim(groupPrefix, "/")
+			trimmedPath := strings.Trim(path, "/")
+			if trimmedPath == "" {
+				path = "/" + trimmedGroup
+			} else {
+				path = "/" + trimmedGroup + "/" + trimmedPath
 			}
 		}
 
@@ -260,6 +274,41 @@ func (f *FrameworkProvider) RegisterSlots(eng *engine.Engine, appCtx *vendors.Ap
 			return nil
 		}
 
+		// Model::where($col, $val) or Model::where($col, $op, $val)
+		if methodName == "where" {
+			qb := orm.Query(modelName)
+			if len(node.Children) == 2 {
+				col := fmt.Sprintf("%v", node.Children[0].Value)
+				val := node.Children[1].Value
+				qb.Where(col, val)
+			} else if len(node.Children) >= 3 {
+				col := fmt.Sprintf("%v", node.Children[0].Value)
+				op := fmt.Sprintf("%v", node.Children[1].Value)
+				val := node.Children[2].Value
+				qb.Where(col, op, val)
+			}
+
+			// Chained calls like ->get(), ->first(), ->orderBy()
+			records, err := qb.Get()
+			if err != nil {
+				scope.Set("_last_expr_result", []interface{}{})
+			} else {
+				scope.Set("_last_expr_result", records)
+			}
+			return nil
+		}
+
+		// Model::count()
+		if methodName == "count" {
+			count, err := orm.Query(modelName).Count()
+			if err != nil {
+				scope.Set("_last_expr_result", 0)
+			} else {
+				scope.Set("_last_expr_result", count)
+			}
+			return nil
+		}
+
 		return nil
 	})
 
@@ -361,6 +410,72 @@ func (f *FrameworkProvider) RegisterSlots(eng *engine.Engine, appCtx *vendors.Ap
 						}
 					}
 				}
+			}
+			return nil
+		}
+
+		// $request->validate([...])
+		if methodName == "validate" {
+			reqVal, _ := scope.Get("http.request")
+			wVal, _ := scope.Get("http.response_writer")
+			if reqVal != nil && wVal != nil {
+				req := reqVal.(*http.Request)
+				w := wVal.(http.ResponseWriter)
+
+				// Parse input data
+				inputData := make(map[string]interface{})
+				if strings.Contains(req.Header.Get("Content-Type"), "application/json") {
+					if req.Body != nil {
+						bodyBytes, _ := io.ReadAll(req.Body)
+						req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+						_ = json.Unmarshal(bodyBytes, &inputData)
+					}
+				} else {
+					_ = req.ParseForm()
+					for k, v := range req.Form {
+						if len(v) > 0 {
+							inputData[k] = v[0]
+						}
+					}
+				}
+
+				// Check validation rules from node.Children
+				validationErrors := make(map[string][]string)
+				for _, child := range node.Children {
+					field := fmt.Sprintf("%v", child.Name)
+					rule := fmt.Sprintf("%v", child.Value)
+					val, exists := inputData[field]
+
+					rules := strings.Split(rule, "|")
+					for _, r := range rules {
+						r = strings.TrimSpace(r)
+						if r == "required" {
+							if !exists || val == nil || fmt.Sprintf("%v", val) == "" {
+								validationErrors[field] = append(validationErrors[field], fmt.Sprintf("The %s field is required.", field))
+							}
+						} else if strings.HasPrefix(r, "min:") {
+							minStr := strings.TrimPrefix(r, "min:")
+							minLen := 0
+							_, _ = fmt.Sscanf(minStr, "%d", &minLen)
+							if exists && len(fmt.Sprintf("%v", val)) < minLen {
+								validationErrors[field] = append(validationErrors[field], fmt.Sprintf("The %s field must be at least %d characters.", field, minLen))
+							}
+						}
+					}
+				}
+
+				if len(validationErrors) > 0 {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusUnprocessableEntity) // 422 Unprocessable Content
+					_ = json.NewEncoder(w).Encode(map[string]interface{}{
+						"message": "The given data was invalid.",
+						"errors":  validationErrors,
+					})
+					scope.Set("_response_sent", true)
+					return fmt.Errorf("validation failed")
+				}
+
+				scope.Set("_last_expr_result", inputData)
 			}
 			return nil
 		}

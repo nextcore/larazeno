@@ -14,6 +14,14 @@ Route::post('/api/pos/checkout', [PosController::class, 'checkout']);
 Route::get('/api/pos/orders', [PosController::class, 'orders']);
 
 // Product Management (Blade UI & Actions)
+Route::prefix('admin')->group(function () {
+    Route::get('/products', [ProductController::class, 'webIndex']);
+    Route::post('/products', [ProductController::class, 'webStore']);
+    Route::put('/products/{id}', [ProductController::class, 'webUpdate']);
+    Route::delete('/products/{id}', [ProductController::class, 'webDestroy']);
+});
+
+// Legacy direct web routes
 Route::get('/web/products', [ProductController::class, 'webIndex']);
 Route::post('/web/products', [ProductController::class, 'webStore']);
 Route::put('/web/products/{id}', [ProductController::class, 'webUpdate']);

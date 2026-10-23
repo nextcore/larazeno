@@ -40,6 +40,13 @@ func Connect(driver, dsn string) (*Database, error) {
 		return nil, err
 	}
 
+	if driver == "sqlite" || driver == "sqlite3" {
+		// Optimize SQLite for high concurrency (Production-grade WAL mode & busy timeout)
+		_, _ = conn.Exec("PRAGMA journal_mode = WAL;")
+		_, _ = conn.Exec("PRAGMA busy_timeout = 5000;")
+		_, _ = conn.Exec("PRAGMA synchronous = NORMAL;")
+	}
+
 	if err := conn.Ping(); err != nil {
 		return nil, fmt.Errorf("koneksi database gagal: %w", err)
 	}

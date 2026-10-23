@@ -156,6 +156,20 @@ func main() {
 
 	// 6. Generic HTTP Router & Dispatcher (Tidak ada rute yang di-hardcode)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// [PANIC BOUNDARY] Lindungi server dari crash saat ada error runtime/unhandled token
+		defer func() {
+			if rec := recover(); rec != nil {
+				log.Printf("🚨 [LaraZeno Panic Recovered] URL: %s %s | Error: %v", r.Method, r.URL.Path, rec)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusInternalServerError)
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{
+					"status":  500,
+					"error":   "Internal Server Error",
+					"message": fmt.Sprintf("%v", rec),
+				})
+			}
+		}()
+
 		// [SECURITY LAYER] Cegah eksekusi skrip ilegal langsung (.php, .sh, webshell, file sensitif .env)
 		if security.GuardDirectScriptExecution(w, r) {
 			return
